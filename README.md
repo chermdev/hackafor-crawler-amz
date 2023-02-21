@@ -41,9 +41,10 @@ this returns a list of dict with the structure:
 hackafor-crawler-amz
 ```
 
-|param|value|
+|params|value|
 |---|---|
-|`--product-url`|`<URLS>` comma-separated|
+|`--urls`| comma-separated|
+|`--locale`| default en-US|
 
 Example:
 ```bash

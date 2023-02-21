@@ -10,8 +10,9 @@ async def automation_amz_product(page: Page, url: str):
     PRODUCT_PRICE_WHOLE = "//span[@class='a-price-whole']"
     PRODUCT_PRICE_FRACTION = "//span[@class='a-price-fraction']"
     PRODUCT_IMAGE_URL = "//div[@id='imgTagWrapperId']/img"
-    PRODUCT_CATEGORIES = ("//div[@id='wayfinding-breadcrumbs_container']"
-                          "//ul/li[not(@class)]")
+    PRODUCT_CATEGORIES = "//div[@id='wayfinding-breadcrumbs_container']//a"
+    # if not url.endswith("&language=es_MX"):
+    #     url += "&language=es_MX"
     await page.goto(url)
     await page.wait_for_selector(PRODUCT_TITLE)
     title = str(await page.inner_text(PRODUCT_TITLE))
@@ -36,7 +37,7 @@ def get_random_agent():
         return random.choice(agents_list)
 
 
-def scrap_urls(urls: Union[str, list]):
+def scrap_urls(urls: Union[str, list], locale: str = "en-US"):
     import asyncio
 
     if isinstance(urls, str):
@@ -50,7 +51,8 @@ def scrap_urls(urls: Union[str, list]):
 
                 async def execute_crawler(url: str):
                     try:
-                        page = await browser.new_page(user_agent=get_random_agent())
+                        page = await browser.new_page(user_agent=get_random_agent(),
+                                                      locale=locale)
                         return await automation_amz_product(page, url)
                     finally:
                         await page.close()
@@ -74,9 +76,10 @@ def cli():
     parser = argparse.ArgumentParser("Amazon Product Scraper")
     parser.add_argument("--urls", required=True,
                         help="list of url comma-separated")
+    parser.add_argument("--locale", default="en-US")
     args = parser.parse_args()
-    URLS = args.urls
-    products = scrap_urls(URLS)
+    products = scrap_urls(args.urls,
+                          locale=args.locale)
     products = str(products) \
         .replace('"', '[rdq]"[rdq]') \
         .replace("'", '"') \
