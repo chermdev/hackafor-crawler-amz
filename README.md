@@ -1,6 +1,6 @@
 # Hackafor Amazon Product Scrapper
 ---
-## install
+## Install
 ```bash
 pip install git+https://github.com/chermdev/hackafor-crawler-amz.git#egg=hackafor_crawler_amz
 ```
