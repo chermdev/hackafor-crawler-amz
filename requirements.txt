@@ -1,2 +1,4 @@
 playwright==1.30.0
 python-dotenv==0.21.1
+pytest==7.2.1
+rich==13.3.1
