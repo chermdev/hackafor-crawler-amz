@@ -7,6 +7,7 @@ from pathlib import Path
 async def automation_amz_product(page: Page, url: str):
     """ Plawyright automation to get product data """
     PRODUCT_TITLE = "//span[@id='productTitle']"
+    PRODUCT_PRICE = "//*[@id='corePrice_desktop']//span[contains(@class,'a-price')]/span[1]"
     PRODUCT_PRICE_WHOLE = "//span[@class='a-price-whole']"
     PRODUCT_PRICE_FRACTION = "//span[@class='a-price-fraction']"
     PRODUCT_IMAGE_URL = "//div[@id='imgTagWrapperId']/img"
@@ -14,11 +15,16 @@ async def automation_amz_product(page: Page, url: str):
     # if not url.endswith("&language=es_MX"):
     #     url += "&language=es_MX"
     await page.goto(url)
-    await page.wait_for_selector(PRODUCT_TITLE)
+    await page.wait_for_selector(PRODUCT_TITLE, timeout=2000)
     title = str(await page.inner_text(PRODUCT_TITLE))
-    price_whole = str(await page.text_content(PRODUCT_PRICE_WHOLE))
-    price_fraction = str(await page.inner_text(PRODUCT_PRICE_FRACTION))
-    price = float(price_whole + price_fraction)
+    price_ele = page.locator(PRODUCT_PRICE)
+    if await price_ele.is_visible():
+        price_str = await page.text_content(PRODUCT_PRICE)
+        price = float(price_str.replace("$","").replace(",", ""))
+    else:
+        price_whole = str(await page.text_content(PRODUCT_PRICE_WHOLE))
+        price_fraction = str(await page.inner_text(PRODUCT_PRICE_FRACTION))
+        price = float(price_whole + price_fraction)
     img_url = await page.get_attribute(PRODUCT_IMAGE_URL, 'src')
     categories = await page.locator(PRODUCT_CATEGORIES).all_inner_texts()
     return {
