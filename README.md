@@ -24,7 +24,8 @@ this returns a list of dict with the structure:
     "name": str, # this value is always "", it's not generated.
     "full_name": str, # product full name
     "price": float, # price of the product
-    "image": str # url of the image
+    "image": str, # url of the image
+    "categories": list # list of categories
   },
   {
     ...

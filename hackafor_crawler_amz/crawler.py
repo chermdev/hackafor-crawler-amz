@@ -10,6 +10,8 @@ async def automation_amz_product(page: Page, url: str):
     PRODUCT_PRICE_WHOLE = "//span[@class='a-price-whole']"
     PRODUCT_PRICE_FRACTION = "//span[@class='a-price-fraction']"
     PRODUCT_IMAGE_URL = "//div[@id='imgTagWrapperId']/img"
+    PRODUCT_CATEGORIES = ("//div[@id='wayfinding-breadcrumbs_container']"
+                          "//ul/li[not(@class)]")
     await page.goto(url)
     await page.wait_for_selector(PRODUCT_TITLE)
     title = str(await page.inner_text(PRODUCT_TITLE))
@@ -17,11 +19,13 @@ async def automation_amz_product(page: Page, url: str):
     price_fraction = str(await page.inner_text(PRODUCT_PRICE_FRACTION))
     price = float(price_whole + price_fraction)
     img_url = await page.get_attribute(PRODUCT_IMAGE_URL, 'src')
+    categories = await page.locator(PRODUCT_CATEGORIES).all_inner_texts()
     return {
         "name": "",
         "full_name": title.replace('\n', ''),
         "price": price,
-        "image": img_url
+        "image": img_url,
+        "categories": categories
     }
 
 
