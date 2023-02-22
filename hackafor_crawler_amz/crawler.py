@@ -2,6 +2,7 @@ import random
 from typing import Union
 from playwright.async_api import async_playwright, Page
 from pathlib import Path
+import asyncio
 
 
 async def automation_amz_product(page: Page, url: str):
@@ -15,20 +16,19 @@ async def automation_amz_product(page: Page, url: str):
     # if not url.endswith("&language=es_MX"):
     #     url += "&language=es_MX"
     await page.goto(url)
-    await page.wait_for_selector(PRODUCT_TITLE, timeout=2000)
-    title = str(await page.inner_text(PRODUCT_TITLE))
+    await page.wait_for_selector(PRODUCT_TITLE, timeout=5000)
+    title = str(await page.inner_text(PRODUCT_TITLE, timeout=1000))
     price_ele = page.locator(PRODUCT_PRICE)
-    if await price_ele.is_visible():
-        price_str = await page.text_content(PRODUCT_PRICE)
+    if await price_ele.is_visible(timeout=1000):
+        price_str = await page.text_content(PRODUCT_PRICE, timeout=1000)
     else:
-        price_whole = str(await page.text_content(PRODUCT_PRICE_WHOLE))
-        price_fraction = str(await page.inner_text(PRODUCT_PRICE_FRACTION))
+        price_whole = str(await page.text_content(PRODUCT_PRICE_WHOLE, timeout=1000))
+        price_fraction = str(await page.inner_text(PRODUCT_PRICE_FRACTION, timeout=1000))
         price_str = price_whole + price_fraction
     price = float(price_str.replace("$", "").replace(",", ""))
-    img_url = await page.get_attribute(PRODUCT_IMAGE_URL, 'src')
+    img_url = await page.get_attribute(PRODUCT_IMAGE_URL, 'src', timeout=1000)
     categories = await page.locator(PRODUCT_CATEGORIES).all_inner_texts()
     return {
-        "name": "",
         "full_name": title.replace('\n', ''),
         "price": price,
         "image": img_url,
@@ -43,37 +43,42 @@ def get_random_agent():
         return random.choice(agents_list)
 
 
-def scrap_urls(urls: Union[str, list], locale: str = "en-US"):
-    import asyncio
+async def scrap_urls(urls: Union[str, list],
+                     locales: Union[str, list] = ["en-US", "es-MX"]):
 
-    if isinstance(urls, str):
-        urls = urls.split(",")
+    urls: list = urls.split(",") \
+        if isinstance(urls, str) \
+        else urls
+    locales: list = locales.split(",") \
+        if isinstance(locales, str) \
+        else locales
 
-    async def main(urls: list):
-        async with async_playwright() as playwright:
-            try:
-                chromium = playwright.chromium
-                browser = await chromium.launch()
+    async with async_playwright() as playwright:
+        try:
+            chromium = playwright.chromium
+            browser = await chromium.launch()
 
-                async def execute_crawler(url: str):
-                    try:
+            async def execute_crawler(url: str, locales: str):
+                data = {}
+                try:
+                    for locale in locales:
                         page = await browser.new_page(user_agent=get_random_agent(),
                                                       locale=locale)
-                        return await automation_amz_product(page, url)
-                    finally:
-                        await page.close()
+                        data[locale] = await automation_amz_product(page, url)
+                    return data
+                finally:
+                    await page.close()
 
-                tasks = set()
-                for url in urls:
-                    task = asyncio.create_task(execute_crawler(url))
-                    tasks.add(task)
-                    task.add_done_callback(tasks.discard)
+            tasks = set()
+            for url in urls:
+                task = asyncio.create_task(
+                    execute_crawler(url, locales))
+                tasks.add(task)
+                task.add_done_callback(tasks.discard)
 
-                return await asyncio.gather(*tasks)
-            finally:
-                await browser.close()
-
-    return asyncio.run(main(urls))
+            return await asyncio.gather(*tasks)
+        finally:
+            await browser.close()
 
 
 def cli():
@@ -82,10 +87,9 @@ def cli():
     parser = argparse.ArgumentParser("Amazon Product Scraper")
     parser.add_argument("--urls", required=True,
                         help="list of url comma-separated")
-    parser.add_argument("--locale", default="en-US")
+    parser.add_argument("-l", "--lang", nargs='+', default=["en-US", "es-MX"])
     args = parser.parse_args()
-    products = scrap_urls(args.urls,
-                          locale=args.locale)
+    products = asyncio.run(scrap_urls(args.urls, args.lang))
     products = str(products) \
         .replace('"', '[rdq]"[rdq]') \
         .replace("'", '"') \
