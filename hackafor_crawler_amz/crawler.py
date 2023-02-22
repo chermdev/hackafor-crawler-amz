@@ -127,9 +127,7 @@ async def scrap_url_lxml(client,
                                              get_random_agent(agents_list))
     data["url"] = url
     data["lang"] = locale
-    return {
-        locale: data
-    }
+    return data
 
 
 async def scrap_with_lxml(urls: list, locales: list, agents_list: list):
@@ -173,9 +171,7 @@ async def scrap_url(browser: Browser,
         data = await automation_amz_product(page, url)
         data["url"] = url
         data["lang"] = locale
-        return {
-            locale: data
-        }
+        return data
     finally:
         await page.close()
 
