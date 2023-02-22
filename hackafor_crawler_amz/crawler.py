@@ -1,5 +1,6 @@
 import random
 import asyncio
+import httpx
 from lxml import html
 from pathlib import Path
 from typing import Union
@@ -18,11 +19,28 @@ PRODUCT_IMAGE_URL = "//div[@id='imgTagWrapperId']/img"
 PRODUCT_CATEGORIES = "//div[@id='wayfinding-breadcrumbs_container']//a"
 
 
-async def automation_amz_product_lxml(page: Page, url: str):
+def timeit(func):
+
+    async def wrapper(*args, **kwargs):
+        import time
+        try:
+            start_time = time.time()
+            return await func(*args, **kwargs)
+        finally:
+            end_time = time.time()
+            print(f"{func.__name__}: ", end_time-start_time)
+
+    return wrapper
+
+
+@timeit
+async def automation_amz_product_lxml(client, url: str, user_agent: str, lang: str):
     """ Plawyright automation to get product data """
     try:
-        await page.goto(url)
-        content_html = await page.content()
+        headers = {"User-Agent": user_agent,
+                   "Accept-Language": lang}
+        res = await client.get(url, headers=headers, follow_redirects=True)
+        content_html = res.text
         doc = html.fromstring(content_html)
         title = doc.xpath(PRODUCT_TITLE)[0].text.strip()
         product_price = doc.xpath(PRODUCT_PRICE)
@@ -88,37 +106,23 @@ def get_random_agent(agents_list: list) -> str:
     return random.choice(agents_list)
 
 
-async def scrap_url(browser: Browser,
-                    url: str,
-                    locale: str,
-                    agents_list: list,
-                    automation_func):
-    try:
-        page = await browser.new_page(user_agent=get_random_agent(agents_list),
-                                      locale=locale)
-        return await automation_func(page, url)
-    finally:
-        await page.close()
-
-
-async def run_crawler(browser: Browser,
-                      url: str,
-                      locales: str,
-                      agents_list: list,
-                      automation_func):
+async def run_crawler_lxml(client,
+                           url: str,
+                           locales: str,
+                           agents_list: list):
     product_data = {
         "url": url,
         "locales": locales,
         "lang": {}
     }
     tasks = set()
+
     for locale in locales:
         task = asyncio.create_task(
-            scrap_url(browser,
-                      url,
-                      locale,
-                      agents_list,
-                      automation_func))
+            automation_amz_product_lxml(client,
+                                        url,
+                                        get_random_agent(agents_list),
+                                        locale))
         tasks.add(task)
         task.add_done_callback(tasks.discard)
 
@@ -130,19 +134,64 @@ async def run_crawler(browser: Browser,
     return product_data
 
 
-async def scrap_urls(urls: Union[str, list],
-                     locales: Union[str, list] = ["en-US", "es-MX"],
-                     func=automation_amz_product):
+async def scrap_with_lxml(agents_list: list):
+    async with httpx.AsyncClient() as client:
+        tasks = set()
+        for url in urls:
+            task = asyncio.create_task(
+                run_crawler_lxml(client,
+                                 url,
+                                 locales,
+                                 agents_list))
+            tasks.add(task)
+            task.add_done_callback(tasks.discard)
+        return await asyncio.gather(*tasks)
 
-    urls: list = urls.split(",") \
-        if isinstance(urls, str) \
-        else urls
-    locales: list = locales.split(",") \
-        if isinstance(locales, str) \
-        else locales
 
-    agents_list = get_agents_list()
+async def scrap_url(browser: Browser,
+                    url: str,
+                    locale: str,
+                    agents_list: list):
+    try:
+        page = await browser.new_page(user_agent=get_random_agent(agents_list),
+                                      locale=locale)
+        data = await automation_amz_product(page, url)
+        return {
+            locale: data
+        }
+    finally:
+        await page.close()
 
+
+async def run_crawler(browser: Browser,
+                      url: str,
+                      locales: str,
+                      agents_list: list):
+    product_data = {
+        "url": url,
+        "locales": locales,
+        "lang": {}
+    }
+    tasks = set()
+    for locale in locales:
+        task = asyncio.create_task(
+            scrap_url(browser,
+                      url,
+                      locale,
+                      agents_list))
+        tasks.add(task)
+        task.add_done_callback(tasks.discard)
+
+    locales_data = await asyncio.gather(*tasks)
+
+    for data in locales_data:
+        lang = list(data.keys())[0]
+        product_data["lang"][lang] = data[lang]
+
+    return product_data
+
+
+async def scrap_with_playwright(agents_list: list):
     async with async_playwright() as playwright:
         try:
             chromium = playwright.chromium
@@ -154,14 +203,32 @@ async def scrap_urls(urls: Union[str, list],
                     run_crawler(browser,
                                 url,
                                 locales,
-                                agents_list,
-                                func))
+                                agents_list))
                 tasks.add(task)
                 task.add_done_callback(tasks.discard)
 
             return await asyncio.gather(*tasks)
         finally:
             await browser.close()
+
+
+async def scrap_urls(urls: Union[str, list],
+                     locales: Union[str, list] = ["en-US", "es-MX"],
+                     method: str = ["playwright"]):
+
+    urls: list = urls.split(",") \
+        if isinstance(urls, str) \
+        else urls
+    locales: list = locales.split(",") \
+        if isinstance(locales, str) \
+        else locales
+
+    agents_list = get_agents_list()
+
+    if method == "playwright":
+        return await scrap_with_playwright(agents_list)
+    elif method == "lxml":
+        return await scrap_with_lxml(agents_list)
 
 
 def cli():
@@ -178,3 +245,20 @@ def cli():
         .replace("'", '"') \
         .replace('[rdq]"[rdq]', '\\"')
     print(products)
+
+
+if __name__ == "__main__":
+
+    urls = ("https://a.co/d/geQhA2O",
+            "https://a.co/d/d650BRG",
+            "https://a.co/d/5GjLWQx",
+            "https://a.co/d/cewgOFz",
+            "https://a.co/d/3h52kBL")
+
+    locales = ["en-US", "es-MX"]
+    data1 = asyncio.run(timeit(scrap_urls)(urls, locales, "playwright"))
+    print(data1)
+    data2 = asyncio.run(timeit(scrap_urls)(urls, locales, "lxml"))
+    print(data2)
+
+    print(len(data1) == len(data2))
