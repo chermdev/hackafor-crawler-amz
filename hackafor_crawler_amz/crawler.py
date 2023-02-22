@@ -33,7 +33,6 @@ def timeit(func):
     return wrapper
 
 
-@timeit
 async def automation_amz_product_lxml(client, url: str, user_agent: str, lang: str):
     """ Plawyright automation to get product data """
     try:
@@ -134,7 +133,7 @@ async def run_crawler_lxml(client,
     return product_data
 
 
-async def scrap_with_lxml(agents_list: list):
+async def scrap_with_lxml(urls: list, locales: list, agents_list: list):
     async with httpx.AsyncClient() as client:
         tasks = set()
         for url in urls:
@@ -191,7 +190,7 @@ async def run_crawler(browser: Browser,
     return product_data
 
 
-async def scrap_with_playwright(agents_list: list):
+async def scrap_with_playwright(urls: list, locales: list, agents_list: list):
     async with async_playwright() as playwright:
         try:
             chromium = playwright.chromium
@@ -214,7 +213,7 @@ async def scrap_with_playwright(agents_list: list):
 
 async def scrap_urls(urls: Union[str, list],
                      locales: Union[str, list] = ["en-US", "es-MX"],
-                     method: str = ["playwright"]):
+                     method: str = ["lxml"]):
 
     urls: list = urls.split(",") \
         if isinstance(urls, str) \
@@ -226,9 +225,9 @@ async def scrap_urls(urls: Union[str, list],
     agents_list = get_agents_list()
 
     if method == "playwright":
-        return await scrap_with_playwright(agents_list)
+        return await scrap_with_playwright(urls, locales, agents_list)
     elif method == "lxml":
-        return await scrap_with_lxml(agents_list)
+        return await scrap_with_lxml(urls, locales, agents_list)
 
 
 def cli():
