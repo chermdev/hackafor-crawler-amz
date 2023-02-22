@@ -20,11 +20,11 @@ async def automation_amz_product(page: Page, url: str):
     price_ele = page.locator(PRODUCT_PRICE)
     if await price_ele.is_visible():
         price_str = await page.text_content(PRODUCT_PRICE)
-        price = float(price_str.replace("$","").replace(",", ""))
     else:
         price_whole = str(await page.text_content(PRODUCT_PRICE_WHOLE))
         price_fraction = str(await page.inner_text(PRODUCT_PRICE_FRACTION))
-        price = float(price_whole + price_fraction)
+        price_str = price_whole + price_fraction
+    price = float(price_str.replace("$", "").replace(",", ""))
     img_url = await page.get_attribute(PRODUCT_IMAGE_URL, 'src')
     categories = await page.locator(PRODUCT_CATEGORIES).all_inner_texts()
     return {
