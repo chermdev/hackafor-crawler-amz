@@ -1,3 +1,7 @@
+** 1.3.1 (2023/02/22) **
+Replace gather with gather_dict
+Increase timeout for playwright
+
 ** 1.3.0 (2023/02/22) **
 Update data returned structure to follow {url:{lang:{data}}}
 Update default method step to "lxml" not ["lxml"]

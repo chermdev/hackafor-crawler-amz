@@ -1,9 +1,9 @@
+import httpx
 import random
 import asyncio
-import httpx
 from lxml import html
-from pathlib import Path
 from typing import Union
+from pathlib import Path
 from playwright.async_api import Page
 from playwright.async_api import Browser
 from playwright.async_api import async_playwright
@@ -71,17 +71,17 @@ async def automation_amz_product(page: Page, url: str):
     """ Plawyright automation to get product data """
     try:
         await page.goto(url)
-        await page.wait_for_selector(PRODUCT_TITLE, timeout=2000)
-        title = str(await page.inner_text(PRODUCT_TITLE, timeout=500))
+        await page.wait_for_selector(PRODUCT_TITLE, timeout=5000)
+        title = str(await page.inner_text(PRODUCT_TITLE, timeout=2000))
         price_ele = page.locator(PRODUCT_PRICE)
         if await price_ele.is_visible(timeout=1000):
-            price_str = await page.text_content(PRODUCT_PRICE, timeout=500)
+            price_str = await page.text_content(PRODUCT_PRICE, timeout=2000)
         else:
-            price_whole = str(await page.text_content(PRODUCT_PRICE_WHOLE, timeout=500))
-            price_fraction = str(await page.inner_text(PRODUCT_PRICE_FRACTION, timeout=500))
+            price_whole = str(await page.text_content(PRODUCT_PRICE_WHOLE, timeout=2000))
+            price_fraction = str(await page.inner_text(PRODUCT_PRICE_FRACTION, timeout=2000))
             price_str = price_whole + price_fraction
         price = float(price_str.replace("$", "").replace(",", ""))
-        img_url = await page.get_attribute(PRODUCT_IMAGE_URL, 'src', timeout=500)
+        img_url = await page.get_attribute(PRODUCT_IMAGE_URL, 'src', timeout=2000)
         categories = await page.locator(PRODUCT_CATEGORIES).all_inner_texts()
         return {
             "full_name": title.replace('\n', ''),
@@ -105,6 +105,17 @@ def get_random_agent(agents_list: list) -> str:
     return random.choice(agents_list)
 
 
+async def gather_dict(tasks: dict):
+    async def mark(key, coro):
+        return key, await coro
+    return {
+        key: result
+        for key, result in await asyncio.gather(
+            *(mark(key, coro) for key, coro in tasks.items())
+        )
+    }
+
+
 async def scrap_url_lxml(client,
                          url: str,
                          locale: str,
@@ -114,53 +125,42 @@ async def scrap_url_lxml(client,
                                              url,
                                              locale,
                                              get_random_agent(agents_list))
-    data["url"] = url,
+    data["url"] = url
     data["lang"] = locale
     return {
         locale: data
     }
 
 
-async def run_crawler_lxml(client,
-                           url: str,
-                           locales: str,
-                           agents_list: list):
-    product_data = {
-        url: {}
-    }
-
-    tasks = set()
-
-    for locale in locales:
-        task = asyncio.create_task(
-            scrap_url_lxml(client,
-                           url,
-                           locale,
-                           get_random_agent(agents_list)))
-        tasks.add(task)
-        task.add_done_callback(tasks.discard)
-
-    locales_data = await asyncio.gather(*tasks)
-
-    for data in locales_data:
-        lang = list(data.keys())[0]
-        product_data[url][lang] = data[lang]
-
-    return product_data
-
-
 async def scrap_with_lxml(urls: list, locales: list, agents_list: list):
     async with httpx.AsyncClient() as client:
-        tasks = set()
+        dict_tasks = {}
         for url in urls:
             task = asyncio.create_task(
                 run_crawler_lxml(client,
                                  url,
                                  locales,
                                  agents_list))
-            tasks.add(task)
-            task.add_done_callback(tasks.discard)
-        return await asyncio.gather(*tasks)
+            dict_tasks[url] = task
+
+        return await gather_dict(dict_tasks)
+
+
+async def run_crawler_lxml(client,
+                           url: str,
+                           locales: str,
+                           agents_list: list):
+
+    dict_tasks = {}
+    for locale in locales:
+        task = asyncio.create_task(
+            scrap_url_lxml(client,
+                           url,
+                           locale,
+                           get_random_agent(agents_list)))
+        dict_tasks[locale] = task
+
+    return await gather_dict(dict_tasks)
 
 
 async def scrap_url(browser: Browser,
@@ -171,7 +171,7 @@ async def scrap_url(browser: Browser,
         page = await browser.new_page(user_agent=get_random_agent(agents_list),
                                       locale=locale)
         data = await automation_amz_product(page, url)
-        data["url"] = url,
+        data["url"] = url
         data["lang"] = locale
         return {
             locale: data
@@ -184,26 +184,16 @@ async def run_crawler(browser: Browser,
                       url: str,
                       locales: str,
                       agents_list: list):
-    product_data = {
-        url: {}
-    }
-    tasks = set()
+    dict_tasks = {}
     for locale in locales:
         task = asyncio.create_task(
             scrap_url(browser,
                       url,
                       locale,
                       agents_list))
-        tasks.add(task)
-        task.add_done_callback(tasks.discard)
+        dict_tasks[locale] = task
 
-    locales_data = await asyncio.gather(*tasks)
-
-    for data in locales_data:
-        lang = list(data.keys())[0]
-        product_data[url][lang] = data[lang]
-
-    return product_data
+    return await gather_dict(dict_tasks)
 
 
 async def scrap_with_playwright(urls: list, locales: list, agents_list: list):
@@ -212,17 +202,26 @@ async def scrap_with_playwright(urls: list, locales: list, agents_list: list):
             chromium = playwright.chromium
             browser = await chromium.launch()
 
-            tasks = set()
+            async def gather_dict(tasks: dict):
+                async def mark(key, coro):
+                    return key, await coro
+                return {
+                    key: result
+                    for key, result in await asyncio.gather(
+                        *(mark(key, coro) for key, coro in tasks.items())
+                    )
+                }
+
+            dict_tasks = {}
             for url in urls:
                 task = asyncio.create_task(
                     run_crawler(browser,
                                 url,
                                 locales,
                                 agents_list))
-                tasks.add(task)
-                task.add_done_callback(tasks.discard)
+                dict_tasks[url] = task
 
-            return await asyncio.gather(*tasks)
+            return await gather_dict(dict_tasks)
         finally:
             await browser.close()
 
