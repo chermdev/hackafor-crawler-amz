@@ -33,7 +33,7 @@ def timeit(func):
     return wrapper
 
 
-async def automation_amz_product_lxml(client, url: str, user_agent: str, lang: str):
+async def automation_amz_product_lxml(client, url: str, lang: str, user_agent: str):
     """ Plawyright automation to get product data """
     try:
         headers = {"User-Agent": user_agent,
@@ -105,6 +105,21 @@ def get_random_agent(agents_list: list) -> str:
     return random.choice(agents_list)
 
 
+async def scrap_url_lxml(client,
+                         url: str,
+                         locale: str,
+                         agents_list: list):
+
+    data = await automation_amz_product_lxml(client,
+                                             url,
+                                             locale,
+                                             get_random_agent(agents_list))
+
+    return {
+        locale: data
+    }
+
+
 async def run_crawler_lxml(client,
                            url: str,
                            locales: str,
@@ -114,21 +129,23 @@ async def run_crawler_lxml(client,
         "locales": locales,
         "lang": {}
     }
+
     tasks = set()
 
     for locale in locales:
         task = asyncio.create_task(
-            automation_amz_product_lxml(client,
-                                        url,
-                                        get_random_agent(agents_list),
-                                        locale))
+            scrap_url_lxml(client,
+                           url,
+                           locale,
+                           get_random_agent(agents_list)))
         tasks.add(task)
         task.add_done_callback(tasks.discard)
 
     locales_data = await asyncio.gather(*tasks)
 
-    for locale, data in zip(locales, locales_data):
-        product_data["lang"][locale] = data
+    for data in locales_data:
+        lang = list(data.keys())[0]
+        product_data["lang"][lang] = data[lang]
 
     return product_data
 

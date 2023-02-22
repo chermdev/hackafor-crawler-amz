@@ -1,6 +1,9 @@
+** 1.2.3 (2023/02/22) **
+Fix data added to other lang on lxml function
+
 ** 1.2.2 (2023/02/22) **
 Remove timeit decorator
-Added missing variables
+Added missing variables (
 
 ** 1.2.1 (2023/02/22) **
 Fix data added to other lang
