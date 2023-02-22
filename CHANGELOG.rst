@@ -1,3 +1,8 @@
+** 1.3.0 (2023/02/22) **
+Update data returned structure to follow {url:{lang:{data}}}
+Update default method step to "lxml" not ["lxml"]
+Add method validation step
+
 ** 1.2.3 (2023/02/22) **
 Fix data added to other lang on lxml function
 

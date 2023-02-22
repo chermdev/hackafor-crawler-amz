@@ -20,16 +20,19 @@ print(data)
 this returns a list of dict with the structure:
 ```python
 [
-  {
-    "name": str, # this value is always "", it's not generated.
-    "full_name": str, # product full name
-    "price": float, # price of the product
-    "image": str, # url of the image
-    "categories": list # list of categories
-  },
-  {
-    ...
-  },
+  "https://...": { # amazon url
+    "en-US": {
+      "full_name": str, # product full name
+      "price": float, # price of the product
+      "image": str, # url of the image
+      "categories": list, # list of categories
+      "lang": "en-US", # lang 
+      "url": "https://..." # amazon url
+    },
+    "es-MX": {
+      ...
+    }
+  }
   ...
 ]
 
@@ -44,7 +47,7 @@ hackafor-crawler-amz
 |params|value|
 |---|---|
 |`--urls`| comma-separated|
-|`--locale`| default en-US|
+|`--locale`| default = "en-US,es-MX" |
 
 Example:
 ```bash

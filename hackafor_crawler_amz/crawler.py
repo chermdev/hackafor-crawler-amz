@@ -114,7 +114,8 @@ async def scrap_url_lxml(client,
                                              url,
                                              locale,
                                              get_random_agent(agents_list))
-
+    data["url"] = url,
+    data["lang"] = locale
     return {
         locale: data
     }
@@ -125,9 +126,7 @@ async def run_crawler_lxml(client,
                            locales: str,
                            agents_list: list):
     product_data = {
-        "url": url,
-        "locales": locales,
-        "lang": {}
+        url: {}
     }
 
     tasks = set()
@@ -145,7 +144,7 @@ async def run_crawler_lxml(client,
 
     for data in locales_data:
         lang = list(data.keys())[0]
-        product_data["lang"][lang] = data[lang]
+        product_data[url][lang] = data[lang]
 
     return product_data
 
@@ -172,6 +171,8 @@ async def scrap_url(browser: Browser,
         page = await browser.new_page(user_agent=get_random_agent(agents_list),
                                       locale=locale)
         data = await automation_amz_product(page, url)
+        data["url"] = url,
+        data["lang"] = locale
         return {
             locale: data
         }
@@ -184,9 +185,7 @@ async def run_crawler(browser: Browser,
                       locales: str,
                       agents_list: list):
     product_data = {
-        "url": url,
-        "locales": locales,
-        "lang": {}
+        url: {}
     }
     tasks = set()
     for locale in locales:
@@ -202,7 +201,7 @@ async def run_crawler(browser: Browser,
 
     for data in locales_data:
         lang = list(data.keys())[0]
-        product_data["lang"][lang] = data[lang]
+        product_data[url][lang] = data[lang]
 
     return product_data
 
@@ -230,7 +229,7 @@ async def scrap_with_playwright(urls: list, locales: list, agents_list: list):
 
 async def scrap_urls(urls: Union[str, list],
                      locales: Union[str, list] = ["en-US", "es-MX"],
-                     method: str = ["lxml"]):
+                     method: str = "lxml"):
 
     urls: list = urls.split(",") \
         if isinstance(urls, str) \
@@ -240,6 +239,11 @@ async def scrap_urls(urls: Union[str, list],
         else locales
 
     agents_list = get_agents_list()
+
+    supported_methods = ["playwright", "lxml"]
+    if method not in supported_methods:
+        raise ValueError(
+            f"method '{method}' not supported. {supported_methods}")
 
     if method == "playwright":
         return await scrap_with_playwright(urls, locales, agents_list)
