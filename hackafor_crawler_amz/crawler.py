@@ -33,26 +33,38 @@ def timeit(func):
     return wrapper
 
 
+class ElementNotFound(Exception):
+    ...
+
+
+def find_lxml_element(doc, locator):
+    results = doc.xpath(locator)
+    if not results:
+        raise ElementNotFound(f"Lxml error: Element not found {locator}")
+    return results[0]
+
+
 async def automation_amz_product_lxml(client, url: str, lang: str, user_agent: str):
-    """ Plawyright automation to get product data """
+    """ Lxml automation to get product data """
     try:
         headers = {"User-Agent": user_agent,
                    "Accept-Language": lang}
         res = await client.get(url, headers=headers, follow_redirects=True)
         content_html = res.text
         doc = html.fromstring(content_html)
-        title = doc.xpath(PRODUCT_TITLE)[0].text.strip()
-        product_price = doc.xpath(PRODUCT_PRICE)
-        if product_price:
-            price_str = product_price[0].text.strip()
-        else:
-            product_price_whole = doc.xpath(PRODUCT_PRICE_WHOLE)[
-                0].text.strip()
-            product_price_fraction = doc.xpath(
-                PRODUCT_PRICE_FRACTION)[0].text.strip()
+        title = find_lxml_element(doc, PRODUCT_TITLE).text.strip()
+        try:
+            product_price = find_lxml_element(doc, PRODUCT_PRICE)
+            price_str = product_price.text.strip()
+        except ElementNotFound:
+            product_price_whole = find_lxml_element(
+                doc, PRODUCT_PRICE_WHOLE).text.strip()
+            product_price_fraction = find_lxml_element(
+                doc,
+                PRODUCT_PRICE_FRACTION).text.strip()
             price_str = product_price_whole + "." + product_price_fraction
         price = float(price_str.replace("$", "").replace(",", ""))
-        img_url = doc.xpath(PRODUCT_IMAGE_URL)[0].attrib["src"]
+        img_url = find_lxml_element(doc, PRODUCT_IMAGE_URL).attrib["src"]
         categories = [ele.text.strip()
                       for ele in doc.xpath(PRODUCT_CATEGORIES)]
         return {
@@ -130,23 +142,9 @@ async def scrap_url_lxml(client,
     return data
 
 
-async def scrap_with_lxml(urls: list, locales: list, agents_list: list):
-    async with httpx.AsyncClient() as client:
-        dict_tasks = {}
-        for url in urls:
-            task = asyncio.create_task(
-                run_crawler_lxml(client,
-                                 url,
-                                 locales,
-                                 agents_list))
-            dict_tasks[url] = task
-
-        return await gather_dict(dict_tasks)
-
-
 async def run_crawler_lxml(client,
                            url: str,
-                           locales: str,
+                           locales: list,
                            agents_list: list):
 
     dict_tasks = {}
@@ -159,6 +157,22 @@ async def run_crawler_lxml(client,
         dict_tasks[locale] = task
 
     return await gather_dict(dict_tasks)
+
+
+async def scrap_with_lxml(urls: list,
+                          locales: list,
+                          agents_list: list):
+    async with httpx.AsyncClient() as client:
+        dict_tasks = {}
+        for url in urls:
+            task = asyncio.create_task(
+                run_crawler_lxml(client,
+                                 url,
+                                 locales,
+                                 agents_list))
+            dict_tasks[url] = task
+
+        return await gather_dict(dict_tasks)
 
 
 async def scrap_url(browser: Browser,
@@ -178,7 +192,7 @@ async def scrap_url(browser: Browser,
 
 async def run_crawler(browser: Browser,
                       url: str,
-                      locales: str,
+                      locales: list,
                       agents_list: list):
     dict_tasks = {}
     for locale in locales:
@@ -192,7 +206,9 @@ async def run_crawler(browser: Browser,
     return await gather_dict(dict_tasks)
 
 
-async def scrap_with_playwright(urls: list, locales: list, agents_list: list):
+async def scrap_with_playwright(urls: list,
+                                locales: list,
+                                agents_list: list):
     async with async_playwright() as playwright:
         try:
             chromium = playwright.chromium
@@ -224,7 +240,7 @@ async def scrap_with_playwright(urls: list, locales: list, agents_list: list):
 
 async def scrap_urls(urls: Union[str, list],
                      locales: Union[str, list] = ["en-US", "es-MX"],
-                     method: str = "lxml"):
+                     method: str = "playwright"):
 
     urls: list = urls.split(",") \
         if isinstance(urls, str) \
@@ -253,8 +269,10 @@ def cli():
     parser.add_argument("--urls", required=True,
                         help="list of url comma-separated")
     parser.add_argument("-l", "--lang", nargs='+', default=["en-US", "es-MX"])
+    parser.add_argument(
+        "--method", choices=["playwright", "lxml"], default="playwright")
     args = parser.parse_args()
-    products = asyncio.run(scrap_urls(args.urls, args.lang))
+    products = asyncio.run(scrap_urls(args.urls, args.lang, args.method))
     products = str(products) \
         .replace('"', '[rdq]"[rdq]') \
         .replace("'", '"') \

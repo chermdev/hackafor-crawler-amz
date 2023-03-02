@@ -1,3 +1,7 @@
+** 1.3.1 (2023/03/02) **
+Use playwright as default
+Add lxml element validation
+
 ** 1.3.1 (2023/02/22) **
 Replace gather with gather_dict
 Increase timeout for playwright
