@@ -1,32 +1,40 @@
-** 1.3.1 (2023/03/02) **
-Use playwright as default
-Add lxml element validation
+**1.3.1 (2023/03/02)**
 
-** 1.3.1 (2023/02/22) **
-Replace gather with gather_dict
-Increase timeout for playwright
+- Use playwright as default
+- Add lxml element validation
 
-** 1.3.0 (2023/02/22) **
-Update data returned structure to follow {url:{lang:{data}}}
-Update default method step to "lxml" not ["lxml"]
-Add method validation step
+**1.3.1 (2023/02/22)**
 
-** 1.2.3 (2023/02/22) **
-Fix data added to other lang on lxml function
+- Replace gather with gather_dict
+- Increase timeout for playwright
 
-** 1.2.2 (2023/02/22) **
-Remove timeit decorator
-Added missing variables (
+**1.3.0 (2023/02/22)**
 
-** 1.2.1 (2023/02/22) **
-Fix data added to other lang
-Update lxml function to improve runtime
+- Update data returned structure to follow {url:{lang:{data}}}
+- Update default method step to "lxml" not ["lxml"]
+- Add method validation step
 
-** 1.1.0 (2023/02/22) **
-Implement scrap multiple languages
-change scrap_urls to async
-Update to improve runtime and report error
+**1.2.3 (2023/02/22)**
 
-** 1.0.0 (2023/02/21) **
-Initial version
-Add crawler to get product data from amazon products.
+- Fix data added to other lang on lxml function
+
+**1.2.2 (2023/02/22)**
+
+- Remove timeit decorator
+- Added missing variables (
+
+**1.2.1 (2023/02/22)**
+
+- Fix data added to other lang
+- Update lxml function to improve runtime
+
+**1.1.0 (2023/02/22)**
+
+- Implement scrap multiple languages
+- change scrap_urls to async
+- Update to improve runtime and report error
+
+**1.0.0 (2023/02/21)**
+
+- Initial version
+- Add crawler to get product data from amazon products.
